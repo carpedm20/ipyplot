@@ -5,12 +5,17 @@ required for displaying images, grid/tab layout and general styling.
 
 from typing import Sequence
 
-import os
 import numpy as np
 import shortuuid
 from numpy import str_
 
 from ._img_helpers import _img_to_base64
+from ._server import (
+    cache_image_bytes,
+    cache_local_file,
+    ensure_server_running,
+    is_remote_url,
+)
 
 try:
     from IPython.display import display, HTML
@@ -285,28 +290,43 @@ def _create_img(
 
     img_uuid = shortuuid.uuid()
 
+    ensure_server_running()
+
     img_html = ""
+    display_url = None
+    resolved_src = None
     if custom_text is not None:
         img_html += '<h4 style="font-size: 12px; word-wrap: break-word;">%s</h4>' % str(custom_text)  # NOQA E501
 
-    use_b64 = True
+    use_b64 = False
 
     if type(image) is str or type(image) is str_:
-        # if image url is local path convert to relative path
-        matches = ['http:', 'https:', 'ftp:', 'www.', 'data:', 'file:']
-        if not any(image.lower().startswith(x) for x in matches):
-            image = os.path.relpath(image)
-        if show_url:
-            img_html += '<h4 style="font-size: 9px; padding-left: 10px; padding-right: 10px; width: 95%%; word-wrap: break-word; white-space: normal;">%s</h4>' % (image)  # NOQA E501
-        if not force_b64:
-            use_b64 = False
-            img_html += '<img src="%s"/>' % image
-        elif "http" in image:
-            print("WARNING: Current implementation doesn't allow to use 'force_b64=True' with images as remote URLs. Ignoring 'force_b64' flag")  # NOQA E501
-            use_b64 = False
+        image_str = str(image)
+        if is_remote_url(image_str):
+            if force_b64:
+                print("WARNING: Current implementation doesn't allow to use 'force_b64=True' with images as remote URLs. Ignoring 'force_b64' flag")  # NOQA E501
+            resolved_src = image_str
+            display_url = resolved_src
+        else:
+            if force_b64:
+                use_b64 = True
+                display_url = image_str
+            else:
+                resolved_src = cache_local_file(image_str)
+                display_url = resolved_src
+    else:
+        if force_b64:
+            use_b64 = True
+        else:
+            resolved_src = cache_image_bytes(image)
+            display_url = resolved_src
 
-    # if image is not a string it means its either PIL.Image or np.ndarray
-    # that's why it's necessary to use conversion to b64
+    if show_url and display_url is not None:
+        img_html += '<h4 style="font-size: 9px; padding-left: 10px; padding-right: 10px; width: 95%%; word-wrap: break-word; white-space: normal;">%s</h4>' % (display_url)  # NOQA E501
+
+    if resolved_src is not None:
+        img_html += '<img src="%s"/>' % resolved_src
+
     if use_b64:
         img_html += '<img src="data:image/png;base64,%s"/>' % _img_to_base64(
             image,

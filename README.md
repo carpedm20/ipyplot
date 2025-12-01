@@ -42,6 +42,17 @@ Best solution I found involved using `IPython` package in connection with simple
   - [x] Azure Notebooks
   - [x] Kaggle Notebooks
 
+### Local file server & caching
+- When you `import ipyplot` a lightweight HTTP server starts and serves files from `~/.ipyplot/`.
+- Local file paths are copied into that folder (preserving their path structure) and in-memory images are cached by content hash, so plots use HTTP URLs instead of large base64 payloads.
+- Configure the server address when needed (e.g. remote notebooks):  
+  ```python
+  import ipyplot
+  ipyplot.set_server_host("0.0.0.0")
+  ipyplot.set_server_port(41000)  # tries higher ports if busy
+  ipyplot.get_server_url()
+  ```
+
 ## Getting Started
 
 To start using IPyPlot, see [examples below](#Usage-examples) or go to 

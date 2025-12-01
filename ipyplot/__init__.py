@@ -14,6 +14,13 @@ ipyplot.plot_images(images=images, labels=labels, ..)
 import sys as _sys
 
 from ._plotting import plot_images, plot_class_tabs, plot_class_representations
+from ._server import (
+    configure_server,
+    ensure_server_running,
+    get_server_url,
+    set_server_host,
+    set_server_port,
+)
 
 __name__ = "IPyPlot"
 __version__ = "1.1.2"
@@ -26,3 +33,5 @@ if 'google.colab' in _sys.modules:  # pragma: no cover
         If images are not displaying properly please try setting `force_b64` param to `True`.
         """  # NOQA E501
     )
+
+ensure_server_running()
