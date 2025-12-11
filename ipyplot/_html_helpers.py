@@ -257,10 +257,15 @@ def _create_img(
 
     Parameters
     ----------
-    image : str or object
+    image : str or object or tuple
         Image object or string URL to local/external image file.
+        Can also be a tuple of (image, label) where:
+        - image: the actual image (str URL, PIL.Image, or numpy.ndarray)
+        - label: a custom label to display instead of showing the URL
+        When a tuple is provided, the URL is not shown (only the label from tuple).
     label : str or int
         Label/class string to be displayed above the image.
+        This is overridden if image is a tuple with a label.
     width : int
         Image width value in pixels.
     grid_style_uuid : str
@@ -269,9 +274,9 @@ def _create_img(
         Additional text to be displayed above the image but below the label name.
         Defaults to None.
     show_url : bool, optional
-        Defines if the urls are displayed as text above the images. 
+        Defines if the urls are displayed as text above the images.
     force_b64 : bool, optional
-        You can force conversion of images to base64 instead of reading them directly from filepaths with HTML.  
+        You can force conversion of images to base64 instead of reading them directly from filepaths with HTML.
         Do mind that using b64 conversion vs reading directly from filepath will be slower.
         You might need to set this to `True` in environments like Google colab.
         Defaults to False.
@@ -287,6 +292,13 @@ def _create_img(
     """  # NOQA E501
     if width is None:
         raise ValueError("`img_width` can't be `None`!")
+
+    # Handle tuple input: (image, label) - extract image and override label, hide URL
+    tuple_label = None
+    if isinstance(image, tuple) and len(image) == 2:
+        image, tuple_label = image
+        label = tuple_label  # Override the label with tuple's label
+        show_url = False  # Don't show URL when tuple label is provided
 
     img_uuid = shortuuid.uuid()
 
@@ -516,3 +528,136 @@ def _get_default_style(img_width: int, zoom_scale: float):
         </style>
     """ % {'0': style_uuid, '1': img_width, '2': zoom_scale}
     return html, style_uuid
+
+
+def _create_fixed_grid(
+        images_grid: Sequence[Sequence[object]],
+        row_labels: Sequence[str or int] = None,
+        custom_texts_grid: Sequence[Sequence[str]] = None,
+        img_width: int = 150,
+        zoom_scale: float = 2.5,
+        show_url: bool = True,
+        force_b64: bool = False,
+        resize_image: bool = False):
+    """
+    Creates HTML code for displaying images in a fixed grid layout.
+    Each inner list represents a row, and the number of columns is determined
+    by the longest inner list. Empty cells are rendered as empty placeholders.
+
+    Parameters
+    ----------
+    images_grid : Sequence[Sequence[object]]
+        List of lists of images. Each inner list is a row.
+        Currently supports images in the following formats:
+        - str (local/remote URL)
+        - PIL.Image
+        - numpy.ndarray
+    row_labels : Sequence[str or int], optional
+        List of labels for each row (displayed on the left side).
+        Must be same length as `images_grid`, by default `None`.
+    custom_texts_grid : Sequence[Sequence[str]], optional
+        List of lists of custom strings to be drawn above each image.
+        Must have same structure as `images_grid`, by default `None`.
+    img_width : int, optional
+        Image width in px, by default 150
+    zoom_scale : float, optional
+        Scale for zoom-in-on-click feature.
+        Best to keep between 1.0~5.0.
+        Defaults to 2.5.
+    show_url : bool, optional
+        Defines if the urls are displayed as text above the images.
+    force_b64 : bool, optional
+        You can force conversion of images to base64 instead of reading them directly from filepaths with HTML.
+        Do mind that using b64 conversion vs reading directly from filepath will be slower.
+        You might need to set this to `True` in environments like Google colab.
+        Defaults to False.
+    resize_image : bool, optional
+        If `True` it will resize image based on `width` parameter.
+        Useful when working with big images and notebooks getting too big in terms of file size.
+        Defaults to `False`.
+
+    Returns
+    -------
+    str
+        Output HTML code.
+    """  # NOQA E501
+    # Determine the number of columns (max length of inner lists)
+    num_cols = max(len(row) for row in images_grid) if images_grid else 0
+
+    # Create style
+    html, grid_style_uuid = _get_default_style(img_width, zoom_scale)
+
+    # Add fixed grid specific styles
+    fixed_grid_uuid = shortuuid.uuid()
+    html += """
+        <style>
+        .ipyplot-fixed-grid-%(0)s {
+            display: table;
+            border-collapse: separate;
+            border-spacing: 3px;
+        }
+        .ipyplot-fixed-grid-row-%(0)s {
+            display: table-row;
+        }
+        .ipyplot-fixed-grid-cell-%(0)s {
+            display: table-cell;
+            vertical-align: top;
+            text-align: center;
+            width: %(1)spx;
+            min-width: %(1)spx;
+        }
+        .ipyplot-fixed-grid-cell-empty-%(0)s {
+            display: table-cell;
+            width: %(1)spx;
+            min-width: %(1)spx;
+            height: 50px;
+            background: #f5f5f5;
+            border: 1px dashed #ddd;
+        }
+        .ipyplot-fixed-grid-row-label-%(0)s {
+            display: table-cell;
+            vertical-align: middle;
+            padding-right: 10px;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        </style>
+    """ % {'0': fixed_grid_uuid, '1': img_width}
+
+    html += '<div class="ipyplot-fixed-grid-%s">' % fixed_grid_uuid
+
+    for row_idx, row_images in enumerate(images_grid):
+        html += '<div class="ipyplot-fixed-grid-row-%s">' % fixed_grid_uuid
+
+        # Add row label if provided
+        if row_labels is not None and row_idx < len(row_labels):
+            html += '<div class="ipyplot-fixed-grid-row-label-%s">%s</div>' % (fixed_grid_uuid, row_labels[row_idx])  # NOQA E501
+
+        for col_idx in range(num_cols):
+            if col_idx < len(row_images) and row_images[col_idx] is not None:
+                image = row_images[col_idx]
+                custom_text = None
+                if custom_texts_grid is not None and row_idx < len(custom_texts_grid):
+                    if col_idx < len(custom_texts_grid[row_idx]):
+                        custom_text = custom_texts_grid[row_idx][col_idx]
+
+                html += '<div class="ipyplot-fixed-grid-cell-%s">' % fixed_grid_uuid
+                html += _create_img(
+                    image=image,
+                    label=col_idx,
+                    width=img_width,
+                    grid_style_uuid=grid_style_uuid,
+                    custom_text=custom_text,
+                    show_url=show_url,
+                    force_b64=force_b64,
+                    resize_image=resize_image
+                )
+                html += '</div>'
+            else:
+                # Empty cell placeholder
+                html += '<div class="ipyplot-fixed-grid-cell-empty-%s"></div>' % fixed_grid_uuid
+
+        html += '</div>'
+
+    html += '</div>'
+    return html

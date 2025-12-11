@@ -90,8 +90,22 @@ def _seq2arr(seq: Sequence[str or int or object]):
     numpy.ndarray
         Array of elements
     """
+    if len(seq) == 0:
+        return np.asarray(seq)
     # this is a hack to make the code work with PIL images
     if issubclass(type(seq[0]), Image.Image):
         return np.asarray(seq, dtype=type(seq[0]))
+    # Preserve tuples as objects (for image tuples like (image, label))
+    elif isinstance(seq[0], tuple):
+        arr = np.empty(len(seq), dtype=object)
+        for i, item in enumerate(seq):
+            arr[i] = item
+        return arr
+    # Handle numpy arrays (images) - store as object array to handle different shapes
+    elif isinstance(seq[0], np.ndarray):
+        arr = np.empty(len(seq), dtype=object)
+        for i, item in enumerate(seq):
+            arr[i] = item
+        return arr
     else:
         return np.asarray(seq)

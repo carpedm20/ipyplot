@@ -7,7 +7,7 @@ import numpy as _np
 from typing import Sequence
 
 from ._html_helpers import (
-    _display_html, _create_tabs, _create_imgs_grid)
+    _display_html, _create_tabs, _create_imgs_grid, _create_fixed_grid)
 from ._utils import _get_class_representations, _seq2arr
 
 
@@ -85,15 +85,61 @@ def plot_class_tabs(
     _display_html(html)
 
 
+def _is_image_tuple(obj):
+    """Check if object is an image tuple (image, label)."""
+    if not isinstance(obj, tuple):
+        return False
+    if len(obj) != 2:
+        return False
+    # Second element should be a string or int (the label)
+    if not isinstance(obj[1], (str, int)):
+        return False
+    return True
+
+
+def _is_nested_list(obj):
+    """Check if object is a list of lists (nested list structure).
+
+    Note: A list of image tuples [(img, label), ...] is NOT considered nested.
+    """
+    if not isinstance(obj, (list, tuple)):
+        return False
+    if len(obj) == 0:
+        return False
+    # Check if first element is a list/tuple (indicating nested structure)
+    # but not a numpy array (which could be an image)
+    first = obj[0]
+    # If it's an image tuple (image, label), this is NOT a nested list
+    if _is_image_tuple(first):
+        return False
+    if isinstance(first, (list, tuple)):
+        return True
+    return False
+
+
+def _is_image_dict(obj):
+    """Check if object is a dictionary of image lists."""
+    if not isinstance(obj, dict):
+        return False
+    if len(obj) == 0:
+        return False
+    # Check if values are sequences (lists, tuples, or arrays)
+    for v in obj.values():
+        if isinstance(v, (list, tuple, _np.ndarray)):
+            return True
+    return False
+
+
 def plot_images(
-        images: Sequence[object],
+        images,
         labels: Sequence[str or int] = None,
         custom_texts: Sequence[str] = None,
         max_images: int = 30,
         img_width: int = 150,
         zoom_scale: float = 2.5,
         show_url: bool = True,
-        force_b64: bool = False):
+        force_b64: bool = False,
+        nested_layout: str = 'tabs'):
     """
     Simply displays images provided in `images` param in grid-like layout.
     Check optional params for max number of images to plot, labels and custom texts to add to each image, image width and other options.
@@ -101,21 +147,27 @@ def plot_images(
 
     Parameters
     ----------
-    images : Sequence[object]
-        List of images to be displayed in tabs layout.
+    images : Sequence[object] or Sequence[Sequence[object]] or Dict[str, Sequence[object]]
+        Images to be displayed. Supports multiple input formats:
+        - Sequence of images: displayed in a simple grid layout
+        - Sequence of sequences (list of lists): displayed as tabs (one tab per inner list)
+          or as a fixed grid (each inner list is a row) depending on `nested_layout` param
+        - Dict of sequences: displayed as tabs with dict keys as tab names
         Currently supports images in the following formats:
         - str (local/remote URL)
         - PIL.Image
         - numpy.ndarray
     labels : Sequence[str or int], optional
         List of classes/labels for images to be grouped by.
-        Must be same length as `images`.
+        Must be same length as `images`. Only used for flat image sequences.
         Defaults to None.
     custom_texts : Sequence[str], optional
         List of custom strings to be drawn above each image.
         Must be same length as `images`, by default `None`.
+        For nested lists, this should also be a nested list with matching structure.
     max_images : int, optional
         How many images to display (takes first N images).
+        For nested lists with tabs layout, this is applied per tab.
         Defaults to 30.
     img_width : int, optional
         Image width in px, by default 150
@@ -124,14 +176,117 @@ def plot_images(
         Best to keep between 1.0~5.0.
         Defaults to 2.5.
     show_url : bool, optional
-        Defines if the urls are displayed as text above the images. 
+        Defines if the urls are displayed as text above the images.
     force_b64 : bool, optional
-        You can force conversion of images to base64 instead of reading them directly from filepaths with HTML.  
+        You can force conversion of images to base64 instead of reading them directly from filepaths with HTML.
         Do mind that using b64 conversion vs reading directly from filepath will be slower.
         You might need to set this to `True` in environments like Google colab.
         Defaults to False.
+    nested_layout : str, optional
+        Layout mode for nested image lists (list of lists). Options:
+        - 'tabs': Create tabs where each inner list is a separate tab (tab names are indices 0, 1, 2, ...)
+        - 'grid': Create a fixed grid where each inner list is a row, columns determined by longest list,
+          empty cells are displayed as placeholders
+        Defaults to 'tabs'.
     """  # NOQA E501
 
+    # Handle dictionary input - create tabs with keys as tab names
+    if _is_image_dict(images):
+        all_images = []
+        all_labels = []
+        all_custom_texts = [] if custom_texts is not None else None
+
+        for key, img_list in images.items():
+            key_str = str(key)
+            for i, img in enumerate(img_list):
+                all_images.append(img)
+                all_labels.append(key_str)
+                if custom_texts is not None and key in custom_texts:
+                    if i < len(custom_texts[key]):
+                        all_custom_texts.append(custom_texts[key][i])
+                    else:
+                        all_custom_texts.append(None)
+
+        all_images = _seq2arr(all_images)
+        all_labels = _np.asarray(all_labels)
+        if all_custom_texts is not None:
+            all_custom_texts = _np.asarray(all_custom_texts)
+
+        # Get tab order from dict keys
+        tabs_order = _np.asarray([str(k) for k in images.keys()])
+
+        html = _create_tabs(
+            images=all_images,
+            labels=all_labels,
+            custom_texts=all_custom_texts,
+            max_imgs_per_tab=max_images,
+            img_width=img_width,
+            zoom_scale=zoom_scale,
+            show_url=show_url,
+            force_b64=force_b64,
+            tabs_order=tabs_order)
+
+        _display_html(html)
+        return
+
+    # Handle nested list input (list of lists)
+    if _is_nested_list(images):
+        if nested_layout == 'grid':
+            # Fixed grid layout - each inner list is a row
+            html = _create_fixed_grid(
+                images_grid=images,
+                row_labels=labels,
+                custom_texts_grid=custom_texts,
+                img_width=img_width,
+                zoom_scale=zoom_scale,
+                show_url=show_url,
+                force_b64=force_b64)
+
+            _display_html(html)
+            return
+        else:
+            # Tabs layout (default) - each inner list is a tab
+            all_images = []
+            all_labels = []
+            all_custom_texts = [] if custom_texts is not None else None
+
+            for idx, img_list in enumerate(images):
+                tab_label = str(idx) if labels is None or idx >= len(labels) else str(labels[idx])
+                for i, img in enumerate(img_list):
+                    all_images.append(img)
+                    all_labels.append(tab_label)
+                    if custom_texts is not None and idx < len(custom_texts):
+                        if i < len(custom_texts[idx]):
+                            all_custom_texts.append(custom_texts[idx][i])
+                        else:
+                            all_custom_texts.append(None)
+
+            all_images = _seq2arr(all_images)
+            all_labels = _np.asarray(all_labels)
+            if all_custom_texts is not None:
+                all_custom_texts = _np.asarray(all_custom_texts)
+
+            # Get tab order - use provided labels or indices
+            if labels is not None:
+                tabs_order = _np.asarray([str(lbl) for lbl in labels[:len(images)]])
+            else:
+                tabs_order = _np.asarray([str(i) for i in range(len(images))])
+
+            html = _create_tabs(
+                images=all_images,
+                labels=all_labels,
+                custom_texts=all_custom_texts,
+                max_imgs_per_tab=max_images,
+                img_width=img_width,
+                zoom_scale=zoom_scale,
+                show_url=show_url,
+                force_b64=force_b64,
+                tabs_order=tabs_order)
+
+            _display_html(html)
+            return
+
+    # Standard flat list of images
     images = _seq2arr(images)
 
     if labels is None:

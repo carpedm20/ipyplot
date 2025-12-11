@@ -20,7 +20,7 @@ Best solution I found involved using `IPython` package in connection with simple
 ### Features:
 - [x] Easy, fast and efficient plotting of images in python within notebooks
 - [x] Plotting functions (see [examples section](#Usage-examples) to learn more):
-  - [x] `plot_images` - simply plots all the images in a grid-like layout 
+  - [x] `plot_images` - simply plots all the images in a grid-like layout
   - [x] `plot_class_representations` - similar to `plot_images` but displays only the first image for each label/class (based on provided labels collection)
   - [x] `plot_class_tabs` - plots images in a grid-like manner in a separate tab for each label/class based on provided labels
 - [x] Supported image formats:
@@ -28,11 +28,16 @@ Best solution I found involved using `IPython` package in connection with simple
   - [x] Sequence of remote URLs, e.g. `[http://yourimages.com/img1.jpg]`
   - [x] Sequence of `PIL.Image` objects
   - [x] Sequence of images as `numpy.ndarray` objects
+  - [x] Tuple of `(image, label)` for per-image custom labels (URL not shown)
   - [x] Supported sequence types: `list`, `numpy.ndarray`, `pandas.Series`
+- [x] Nested structures in `plot_images`:
+  - [x] `dict` of image lists - automatically creates tabs with dict keys as tab names
+  - [x] List of lists with `nested_layout='tabs'` - each inner list becomes a tab
+  - [x] List of lists with `nested_layout='grid'` - each inner list becomes a row in a fixed grid
 - [x] Misc features:
   - [x] `custom_texts` param to display additional texts like confidence score or some other information for each image
   - [x] `force_b64` flag to force conversion of images from URLs to base64 format
-  - [x] click on image to enlarge 
+  - [x] click on image to enlarge
   - [x] control number of displayed images and their width through `max_images` and `img_width` params
   - [x] "show html" button which reveals the HTML code used to generate plots
   - [x] option to set specific order of labels/tabs, filter them or ignore some of the labels
@@ -126,5 +131,42 @@ ipyplot.plot_class_tabs(images, labels, max_imgs_per_tab=10, img_width=150)
 ```
 
 ![](https://raw.githubusercontent.com/karolzak/ipyplot/master/docs/example1-tabs.gif)
+
+#### Display images with custom labels using tuples
+
+When you provide images as `(image, label)` tuples, the custom label is displayed and the URL is hidden:
+
+```python
+images = [
+    ("docs/cat1.jpg", "Whiskers"),
+    ("docs/cat2.jpg", "Mittens"),
+    ("docs/dog1.jpg", "Buddy"),
+]
+ipyplot.plot_images(images, img_width=150)
+```
+
+#### Display images grouped by dictionary keys (automatic tabs)
+
+```python
+images = {
+    "Cats": ["cat1.jpg", "cat2.jpg", "cat3.jpg"],
+    "Dogs": ["dog1.jpg", "dog2.jpg"],
+    "Birds": ["bird1.jpg", "bird2.jpg", "bird3.jpg"],
+}
+ipyplot.plot_images(images, img_width=150)
+```
+
+#### Display images in a fixed grid layout
+
+Use `nested_layout='grid'` to display a list of lists as rows in a fixed grid. Shorter rows will have empty cell placeholders:
+
+```python
+images = [
+    ["row1_img1.jpg", "row1_img2.jpg", "row1_img3.jpg"],
+    ["row2_img1.jpg", "row2_img2.jpg"],  # shorter row
+    ["row3_img1.jpg", "row3_img2.jpg", "row3_img3.jpg", "row3_img4.jpg"],
+]
+ipyplot.plot_images(images, labels=["Row 1", "Row 2", "Row 3"], nested_layout='grid', img_width=150)
+```
 
 To learn more about what you can do with IPyPlot go to [gear-images-examples.ipynb](https://github.com/karolzak/ipyplot/blob/master/notebooks/gear-images-examples.ipynb) notebook for more complex examples.
