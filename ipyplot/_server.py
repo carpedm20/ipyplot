@@ -24,7 +24,8 @@ CACHE_ROOT = Path.home() / ".ipyplot"
 FILES_DIR = CACHE_ROOT / "files"
 GENERATED_DIR = CACHE_ROOT / "generated"
 
-DEFAULT_HOST = "127.0.0.1"
+DEFAULT_HOST = "0.0.0.0"
+DEFAULT_PUBLIC_HOST = "127.0.0.1"
 DEFAULT_PORT = 39876
 MAX_PORT_SCAN = 25
 
@@ -32,6 +33,7 @@ _server: Optional[ThreadingHTTPServer] = None
 _server_thread: Optional[threading.Thread] = None
 _preferred_host: str = DEFAULT_HOST
 _preferred_port: int = DEFAULT_PORT
+_public_host: str = DEFAULT_PUBLIC_HOST
 _server_host: Optional[str] = None
 _server_port: Optional[int] = None
 _cache_lock = threading.Lock()
@@ -92,9 +94,25 @@ def ensure_server_running() -> Tuple[str, int]:
     return _run_server(_preferred_host, _preferred_port)
 
 
-def configure_server(host: Optional[str] = None, port: Optional[int] = None) -> str:
-    """Configure server binding. Restarts server when values change."""
-    global _preferred_host, _preferred_port
+def configure_server(
+    host: Optional[str] = None,
+    port: Optional[int] = None,
+    public_host: Optional[str] = None,
+) -> str:
+    """Configure server binding and/or public URL host.
+
+    Parameters
+    ----------
+    host : str, optional
+        Bind address for the HTTP server (default ``0.0.0.0``).
+    port : int, optional
+        Starting port number for the HTTP server.
+    public_host : str, optional
+        Hostname used when building URLs for HTML output
+        (default ``127.0.0.1``).  Set this to the externally
+        reachable address when running in remote notebooks.
+    """
+    global _preferred_host, _preferred_port, _public_host
     restart_needed = False
     if host and host != _preferred_host:
         _preferred_host = host
@@ -102,6 +120,8 @@ def configure_server(host: Optional[str] = None, port: Optional[int] = None) -> 
     if port and port != _preferred_port:
         _preferred_port = int(port)
         restart_needed = True
+    if public_host is not None:
+        _public_host = public_host
     if restart_needed and _server:
         stop_server()
     ensure_server_running()
@@ -109,13 +129,28 @@ def configure_server(host: Optional[str] = None, port: Optional[int] = None) -> 
 
 
 def set_server_host(host: str) -> str:
-    """Public helper to override the server host name."""
+    """Override the server bind address (default ``0.0.0.0``)."""
     return configure_server(host=host)
 
 
 def set_server_port(port: int) -> str:
-    """Public helper to override the starting port."""
+    """Override the starting port."""
     return configure_server(port=port)
+
+
+def set_public_host(host: str) -> str:
+    """Override the hostname used in generated HTML URLs.
+
+    By default URLs point to ``127.0.0.1``.  Change this when the
+    notebook is accessed from a different machine (e.g. set to
+    ``"my-server.example.com"``).
+    """
+    return configure_server(public_host=host)
+
+
+def get_public_host() -> str:
+    """Return the hostname currently used for HTML URLs."""
+    return _public_host
 
 
 def stop_server():
@@ -131,10 +166,14 @@ def stop_server():
 
 
 def get_server_url() -> str:
-    """Return base URL where cached files are served."""
+    """Return base URL used in HTML for serving cached files.
+
+    Uses the public host (default ``127.0.0.1``) which may differ from the
+    actual bind address (default ``0.0.0.0``).
+    """
     if not _server_host or not _server_port:
         ensure_server_running()
-    return f"http://{_server_host}:{_server_port}"
+    return f"http://{_public_host}:{_server_port}"
 
 
 def _sanitize_path_for_cache(path: Path) -> Path:

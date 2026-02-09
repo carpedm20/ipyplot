@@ -17,7 +17,9 @@ from ._plotting import plot_images, plot_class_tabs, plot_class_representations
 from ._server import (
     configure_server,
     ensure_server_running,
+    get_public_host,
     get_server_url,
+    set_public_host,
     set_server_host,
     set_server_port,
 )
