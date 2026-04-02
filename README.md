@@ -102,7 +102,7 @@ ipyplot.plot_class_representations(
 )
 ```
 
-### Use base64 when the notebook cannot reach the local cache server
+### Use base64 when the notebook cannot reach the local cache server (don't use this unless it's necessary)
 
 ```python
 local_files = ["cat-1.jpg", "dog-1.jpg", "cat-2.jpg"]
