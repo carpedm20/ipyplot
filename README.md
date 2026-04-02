@@ -137,7 +137,11 @@ ipyplot.plot_class_representations(
 ### Use base64 when the notebook cannot reach the local cache server (don't use this unless it's necessary)
 
 ```python
-local_files = ["cat-1.jpg", "dog-1.jpg", "cat-2.jpg"]
+local_files = [
+    "https://cdn-images.farfetch-contents.com/20/71/24/20/20712420_50859668_1000.jpg",
+    "https://image.msscdn.net/images/prd_img/20250228/4845168/detail_4845168_17422706902028_500.jpg",
+    "https://cdn-images.farfetch-contents.com/16/48/68/50/16486850_32134463_1000.jpg",
+]
 
 ipyplot.plot_images(local_files, img_width=150, force_b64=True)
 ```
@@ -145,7 +149,11 @@ ipyplot.plot_images(local_files, img_width=150, force_b64=True)
 ### Configure the local image server for remote notebooks
 
 ```python
-local_files = ["cat-1.jpg", "dog-1.jpg", "cat-2.jpg"]
+local_files = [
+    "https://cdn-images.farfetch-contents.com/22/48/94/73/22489473_52451907_1000.jpg",
+    "https://image.msscdn.net/images/prd_img/20230417/3238702/detail_3238702_16868957666567_500.jpg",
+    "https://cdn-images.farfetch-contents.com/24/24/49/50/24244950_54244583_1000.jpg",
+]
 
 ipyplot.configure_server(
     host="0.0.0.0",
