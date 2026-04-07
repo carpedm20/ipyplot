@@ -5,7 +5,7 @@ IPyPlot renders notebook-friendly HTML galleries for image datasets.
 ## Installation
 
 ```bash
-pip install ipyplot
+pip install git+https://github.com/carpedm20/ipyplot
 ```
 
 ## Representative Examples
