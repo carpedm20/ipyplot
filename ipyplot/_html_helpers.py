@@ -533,6 +533,7 @@ def _get_default_style(img_width: int, zoom_scale: float):
 def _create_fixed_grid(
         images_grid: Sequence[Sequence[object]],
         row_labels: Sequence[str or int] = None,
+        column_labels: Sequence[str or int] = None,
         custom_texts_grid: Sequence[Sequence[str]] = None,
         img_width: int = 150,
         zoom_scale: float = 2.5,
@@ -555,6 +556,12 @@ def _create_fixed_grid(
     row_labels : Sequence[str or int], optional
         List of labels for each row (displayed on the left side).
         Must be same length as `images_grid`, by default `None`.
+    column_labels : Sequence[str or int], optional
+        List of labels for each column (displayed as a header row above the
+        grid). Must be at most `num_cols` long; extras are truncated.
+        When both `row_labels` and `column_labels` are provided the header
+        row starts with an empty corner cell so columns line up with the
+        image cells below. By default `None`.
     custom_texts_grid : Sequence[Sequence[str]], optional
         List of lists of custom strings to be drawn above each image.
         Must have same structure as `images_grid`, by default `None`.
@@ -621,10 +628,38 @@ def _create_fixed_grid(
             font-weight: bold;
             font-size: 12px;
         }
+        .ipyplot-fixed-grid-col-label-%(0)s {
+            display: table-cell;
+            vertical-align: bottom;
+            text-align: center;
+            padding-bottom: 4px;
+            font-weight: bold;
+            font-size: 12px;
+            width: %(1)spx;
+            min-width: %(1)spx;
+        }
+        .ipyplot-fixed-grid-corner-%(0)s {
+            display: table-cell;
+        }
         </style>
     """ % {'0': fixed_grid_uuid, '1': img_width}
 
     html += '<div class="ipyplot-fixed-grid-%s">' % fixed_grid_uuid
+
+    # Header row with column labels (and an empty corner cell when row labels
+    # are also present, so column headers align with image cells below).
+    if column_labels is not None:
+        html += '<div class="ipyplot-fixed-grid-row-%s">' % fixed_grid_uuid
+        if row_labels is not None:
+            html += '<div class="ipyplot-fixed-grid-corner-%s"></div>' % fixed_grid_uuid
+        for col_idx in range(num_cols):
+            if col_idx < len(column_labels):
+                html += '<div class="ipyplot-fixed-grid-col-label-%s">%s</div>' % (
+                    fixed_grid_uuid, column_labels[col_idx]
+                )
+            else:
+                html += '<div class="ipyplot-fixed-grid-col-label-%s"></div>' % fixed_grid_uuid
+        html += '</div>'
 
     for row_idx, row_images in enumerate(images_grid):
         html += '<div class="ipyplot-fixed-grid-row-%s">' % fixed_grid_uuid
@@ -641,10 +676,18 @@ def _create_fixed_grid(
                     if col_idx < len(custom_texts_grid[row_idx]):
                         custom_text = custom_texts_grid[row_idx][col_idx]
 
+                # Per-cell title: prefer the column label over the raw column
+                # index, so cells say "model-a" rather than "0". Falls back to
+                # the column index when column_labels is not provided.
+                cell_label = (
+                    column_labels[col_idx]
+                    if column_labels is not None and col_idx < len(column_labels)
+                    else col_idx
+                )
                 html += '<div class="ipyplot-fixed-grid-cell-%s">' % fixed_grid_uuid
                 html += _create_img(
                     image=image,
-                    label=col_idx,
+                    label=cell_label,
                     width=img_width,
                     grid_style_uuid=grid_style_uuid,
                     custom_text=custom_text,

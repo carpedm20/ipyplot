@@ -97,6 +97,70 @@ def test_plot_class_tabs(
     assert(str(HTML).split("'")[1] in captured.out)
 
 
+GRID_IMAGES = [
+    [BASE_LOCAL_URLS[0], BASE_LOCAL_URLS[1], BASE_LOCAL_URLS[2]],
+    [BASE_LOCAL_URLS[2], BASE_LOCAL_URLS[0], BASE_LOCAL_URLS[1]],
+]
+
+
+def _capture_grid_html(monkeypatch, **kwargs):
+    """Intercept the HTML string that plot_images would send to IPython."""
+    from ipyplot import _plotting
+
+    captured = {}
+
+    def _fake_display(html_str):
+        captured["html"] = html_str
+
+    monkeypatch.setattr(_plotting, "_display_html", _fake_display)
+    ipyplot.plot_images(
+        GRID_IMAGES,
+        nested_layout="grid",
+        show_url=False,
+        img_width=120,
+        **kwargs,
+    )
+    return captured["html"]
+
+
+def test_plot_images_grid_backcompat_labels(monkeypatch):
+    """`labels=` on grid mode still works and renders as per-row titles."""
+    html = _capture_grid_html(monkeypatch, labels=["row-one", "row-two"])
+    assert '<div class="ipyplot-fixed-grid-row-label-' in html
+    assert "row-one" in html and "row-two" in html
+    # No column-label div should appear when only row labels were supplied.
+    # (The CSS class is always declared, but the rendered `<div class="...">`
+    # for a column header is only emitted when column_labels is set.)
+    assert '<div class="ipyplot-fixed-grid-col-label-' not in html
+    assert '<div class="ipyplot-fixed-grid-corner-' not in html
+
+
+def test_plot_images_grid_row_and_column_labels(monkeypatch):
+    """Explicit row_labels + column_labels render as axes with a corner cell."""
+    html = _capture_grid_html(
+        monkeypatch,
+        row_labels=["bottoms", "tops"],
+        column_labels=["farfetch", "ssense", "msscdn"],
+    )
+    assert '<div class="ipyplot-fixed-grid-row-label-' in html
+    assert '<div class="ipyplot-fixed-grid-col-label-' in html
+    assert '<div class="ipyplot-fixed-grid-corner-' in html  # corner cell
+    for label in ("bottoms", "tops", "farfetch", "ssense", "msscdn"):
+        assert label in html
+
+
+def test_plot_images_grid_row_labels_kwarg_wins_over_labels(monkeypatch):
+    """If both `labels` and `row_labels` are passed, `row_labels` is authoritative."""
+    html = _capture_grid_html(
+        monkeypatch,
+        labels=["should-not-appear-1", "should-not-appear-2"],
+        row_labels=["real-row-1", "real-row-2"],
+    )
+    assert "real-row-1" in html and "real-row-2" in html
+    assert "should-not-appear-1" not in html
+    assert "should-not-appear-2" not in html
+
+
 @pytest.mark.parametrize(
     "imgs, labels, custom_texts",
     TEST_DATA)

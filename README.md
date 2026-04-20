@@ -57,7 +57,13 @@ ipyplot.plot_images(images_by_group, img_width=150)
 
 ### Fixed comparison grid from nested lists
 
+Grid mode renders the outer list as rows and each inner list as cells
+within that row. Use `row_labels=` for per-row titles (left side) and
+`column_labels=` for column headers across the top. Read the grid the
+same way you'd read a spreadsheet: row = category/item, column = variant.
+
 ```python
+# rows = product categories, columns = providers we want to compare.
 comparison_rows = [
     [
         "https://cdn-images.farfetch-contents.com/24/24/49/50/24244950_54244583_1000.jpg",
@@ -74,12 +80,18 @@ comparison_rows = [
 
 ipyplot.plot_images(
     comparison_rows,
-    labels=["baseline", "model-a", "model-b"],
+    row_labels=["bottoms", "tops", "bags"],
+    column_labels=["farfetch", "ssense"],
     nested_layout="grid",
     show_url=False,
     img_width=150,
 )
 ```
+
+> The older `labels=` kwarg still works as an alias for `row_labels` when
+> `nested_layout="grid"` is set — keeping existing notebooks compatible.
+> Prefer the explicit `row_labels` / `column_labels` kwargs in new code so
+> the grid axes are obvious at the call site.
 
 ### Per-image display labels with tuples
 

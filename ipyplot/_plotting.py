@@ -139,7 +139,9 @@ def plot_images(
         zoom_scale: float = 2.5,
         show_url: bool = True,
         force_b64: bool = False,
-        nested_layout: str = 'tabs'):
+        nested_layout: str = 'tabs',
+        row_labels: Sequence[str or int] = None,
+        column_labels: Sequence[str or int] = None):
     """
     Simply displays images provided in `images` param in grid-like layout.
     Check optional params for max number of images to plot, labels and custom texts to add to each image, image width and other options.
@@ -160,6 +162,17 @@ def plot_images(
     labels : Sequence[str or int], optional
         List of classes/labels for images to be grouped by.
         Must be same length as `images`. Only used for flat image sequences.
+        For `nested_layout="grid"` this acts as an alias for `row_labels`
+        (kept for backwards compatibility); prefer the explicit
+        `row_labels` / `column_labels` kwargs in grid mode.
+        Defaults to None.
+    row_labels : Sequence[str or int], optional
+        Grid mode only. Labels shown on the left side of each row.
+        Must have at most `len(images)` entries. Defaults to None.
+    column_labels : Sequence[str or int], optional
+        Grid mode only. Column headers rendered above the grid. When both
+        `row_labels` and `column_labels` are provided the header row gets
+        an empty corner cell so headers align with image cells below.
         Defaults to None.
     custom_texts : Sequence[str], optional
         List of custom strings to be drawn above each image.
@@ -232,10 +245,14 @@ def plot_images(
     # Handle nested list input (list of lists)
     if _is_nested_list(images):
         if nested_layout == 'grid':
-            # Fixed grid layout - each inner list is a row
+            # Fixed grid layout - each inner list is a row.
+            # For backwards compatibility, accept `labels` as an alias for
+            # `row_labels` when the new explicit kwarg is not provided.
+            effective_row_labels = row_labels if row_labels is not None else labels
             html = _create_fixed_grid(
                 images_grid=images,
-                row_labels=labels,
+                row_labels=effective_row_labels,
+                column_labels=column_labels,
                 custom_texts_grid=custom_texts,
                 img_width=img_width,
                 zoom_scale=zoom_scale,
