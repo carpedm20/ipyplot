@@ -161,6 +161,40 @@ def test_plot_images_grid_row_labels_kwarg_wins_over_labels(monkeypatch):
     assert "should-not-appear-2" not in html
 
 
+def test_configure_server_public_host_does_not_start_server():
+    from ipyplot import _server
+
+    _server.stop_server()
+    try:
+        url = _server.configure_server(public_host="tdraw4.inc")
+
+        assert _server._server is None
+        assert _server._server_thread is None
+        assert url == "http://tdraw4.inc:39876"
+    finally:
+        _server._public_host = _server.DEFAULT_PUBLIC_HOST
+        _server._preferred_host = _server.DEFAULT_HOST
+        _server._preferred_port = _server.DEFAULT_PORT
+        _server.stop_server()
+
+
+def test_remote_urls_do_not_start_local_server():
+    from ipyplot import _html_helpers, _server
+
+    _server.stop_server()
+    html = _html_helpers._create_img(
+        image="https://example.com/test.png",
+        label="remote",
+        width=120,
+        grid_style_uuid="grid",
+        show_url=False,
+    )
+
+    assert 'src="https://example.com/test.png"' in html
+    assert _server._server is None
+    assert _server._server_thread is None
+
+
 @pytest.mark.parametrize(
     "imgs, labels, custom_texts",
     TEST_DATA)

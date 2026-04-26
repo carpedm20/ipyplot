@@ -35,5 +35,3 @@ if 'google.colab' in _sys.modules:  # pragma: no cover
         If images are not displaying properly please try setting `force_b64` param to `True`.
         """  # NOQA E501
     )
-
-ensure_server_running()

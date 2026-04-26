@@ -302,8 +302,6 @@ def _create_img(
 
     img_uuid = shortuuid.uuid()
 
-    ensure_server_running()
-
     img_html = ""
     display_url = None
     resolved_src = None
@@ -324,12 +322,14 @@ def _create_img(
                 use_b64 = True
                 display_url = image_str
             else:
+                ensure_server_running()
                 resolved_src = cache_local_file(image_str)
                 display_url = resolved_src
     else:
         if force_b64:
             use_b64 = True
         else:
+            ensure_server_running()
             resolved_src = cache_image_bytes(image)
             display_url = resolved_src
 

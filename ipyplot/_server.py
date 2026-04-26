@@ -57,6 +57,10 @@ def _start_http_server(host: str, port: int):
     return server
 
 
+def _build_server_url(port: int) -> str:
+    return f"http://{_public_host}:{port}"
+
+
 def _pick_port(host: str, start_port: int) -> Tuple[str, int]:
     port = start_port
     for _ in range(MAX_PORT_SCAN):
@@ -124,8 +128,10 @@ def configure_server(
         _public_host = public_host
     if restart_needed and _server:
         stop_server()
-    ensure_server_running()
-    return get_server_url()
+    if _server:
+        ensure_server_running()
+        return get_server_url()
+    return _build_server_url(_preferred_port)
 
 
 def set_server_host(host: str) -> str:
@@ -155,7 +161,7 @@ def get_public_host() -> str:
 
 def stop_server():
     """Shutdown the local HTTP server."""
-    global _server, _server_thread
+    global _server, _server_thread, _server_host, _server_port
     if _server:
         _server.shutdown()
         _server.server_close()
@@ -163,6 +169,8 @@ def stop_server():
     if _server_thread:
         _server_thread.join(timeout=1)
         _server_thread = None
+    _server_host = None
+    _server_port = None
 
 
 def get_server_url() -> str:
@@ -173,7 +181,7 @@ def get_server_url() -> str:
     """
     if not _server_host or not _server_port:
         ensure_server_running()
-    return f"http://{_public_host}:{_server_port}"
+    return _build_server_url(_server_port)
 
 
 def _sanitize_path_for_cache(path: Path) -> Path:
